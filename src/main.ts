@@ -259,13 +259,35 @@ function paletteColor(level: LevelScript, index: number): string {
 }
 
 function readableHostColor(level: LevelScript): number {
-  const paletteZero = colorNumber(paletteColor(level, 0));
+  const candidate = paletteColor(level, 0);
+  const tileBackground = "#0b0d10";
 
-  return paletteZero < 0x303030 ? 0xd4d8df : paletteZero;
+  if (relativeLuminance(candidate) < 0.5 && relativeLuminance(tileBackground) < 0.5) {
+    return 0xe6e8ee;
+  }
+
+  return colorNumber(candidate);
 }
 
 function colorNumber(hex: string): number {
   return Number.parseInt(hex.slice(1), 16);
+}
+
+function relativeLuminance(hex: string): number {
+  const value = colorNumber(hex);
+  const red = channelLuminance((value >> 16) & 255);
+  const green = channelLuminance((value >> 8) & 255);
+  const blue = channelLuminance(value & 255);
+
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function channelLuminance(channel: number): number {
+  const normalized = channel / 255;
+
+  return normalized <= 0.03928
+    ? normalized / 12.92
+    : ((normalized + 0.055) / 1.055) ** 2.4;
 }
 
 function hostFromUrl(url: string): string {

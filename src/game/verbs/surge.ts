@@ -160,8 +160,7 @@ class SurgeRuntime implements SurgeRun {
       return;
     }
 
-    const density = act.payload.density;
-    const spawnRate = density * 8;
+    const spawnRate = spawnRateForDensity(act.payload.density);
 
     this.spawnAccumulator += spawnRate * (options.deltaMs / 1000);
 
@@ -262,6 +261,10 @@ class SurgeRuntime implements SurgeRun {
 
 const SCROLL_SPEED = 320;
 
+export function spawnRateForDensity(density: number): number {
+  return lerp(0.5, 7, density);
+}
+
 function obstacleRect(obstacle: Obstacle): PlayerRect {
   return {
     left: obstacle.x - obstacle.width / 2,
@@ -298,4 +301,8 @@ function colorNumber(hex: string): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function lerp(min: number, max: number, value: number): number {
+  return min + (max - min) * value;
 }
