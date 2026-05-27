@@ -2,7 +2,13 @@ import { Container, Graphics, Text, TextStyle } from "pixi.js";
 import { InputController, type PlayfieldMetrics } from "./input";
 import { mulberry32, seedFromHex } from "./rng";
 import { ScoreState, type ScoreSnapshot } from "./scoring";
-import { createSurgeRun, type PlayerRect, type SurgeRun } from "./verbs/surge";
+import {
+  createSurgeRun,
+  drawSurgeBackground,
+  surgeConfigFor,
+  type PlayerRect,
+  type SurgeRun,
+} from "./verbs/surge";
 import type { LevelScript } from "../types/level-script";
 
 export const VIRTUAL_WIDTH = 480;
@@ -10,7 +16,6 @@ export const PLAYER_SIZE = 32;
 export const PLAYER_MIN_X = PLAYER_SIZE / 2;
 export const PLAYER_MAX_X = VIRTUAL_WIDTH - PLAYER_SIZE / 2;
 export const PLAYER_BOTTOM_OFFSET = 80;
-export const SCROLL_SPEED = 320;
 
 export type PreviewState = {
   kind: "preview";
@@ -92,6 +97,7 @@ export class GameRuntime {
       canvas: this.canvas,
       getMetrics: () => this.metrics,
       initialPlayerX: this.playerX,
+      keyboardSpeed: surgeConfigFor(this.level.archetype).playerMoveSpeed,
       minX: PLAYER_MIN_X,
       maxX: PLAYER_MAX_X,
     });
@@ -221,15 +227,15 @@ export class GameRuntime {
 
   private renderStatic(): void {
     const metrics = this.metrics;
-    const backgroundColor = colorNumber(paletteColor(this.level, 0));
 
     this.root.scale.set(metrics.scale);
     this.root.position.set(metrics.offsetX, metrics.offsetY);
-    this.playfieldBackground.clear();
-    this.playfieldBackground.rect(0, 0, VIRTUAL_WIDTH, metrics.virtualHeight);
-    this.playfieldBackground.fill({ color: 0x050505 });
-    this.playfieldBackground.rect(0, 0, VIRTUAL_WIDTH, metrics.virtualHeight);
-    this.playfieldBackground.fill({ color: backgroundColor, alpha: 0.18 });
+    drawSurgeBackground(
+      this.playfieldBackground,
+      this.level,
+      this.elapsedMs,
+      metrics.virtualHeight,
+    );
     this.levelText.position.set(28, 62);
     this.player.position.set(this.playerX, this.playerY(metrics.virtualHeight));
   }

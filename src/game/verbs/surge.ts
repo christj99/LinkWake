@@ -2,6 +2,7 @@ import { Graphics, type Container } from "pixi.js";
 import type { RandomSource } from "../rng";
 import type {
   Act,
+  Archetype,
   LevelScript,
   ObstacleType,
   WavePattern,
@@ -42,6 +43,21 @@ export type SurgeRunOptions = {
   rng: RandomSource;
 };
 
+export type SurgeArchetypeConfig = {
+  scrollSpeed: number;
+  playerMoveSpeed: number;
+  spawnRateMultiplier: number;
+};
+
+export const SURGE_ARCHETYPE_CONFIG: Record<Archetype, SurgeArchetypeConfig> = {
+  longform: { scrollSpeed: 220, playerMoveSpeed: 280, spawnRateMultiplier: 0.85 },
+  reference: { scrollSpeed: 320, playerMoveSpeed: 320, spawnRateMultiplier: 1 },
+  commerce: { scrollSpeed: 420, playerMoveSpeed: 360, spawnRateMultiplier: 1.25 },
+  media: { scrollSpeed: 320, playerMoveSpeed: 320, spawnRateMultiplier: 1 },
+  data: { scrollSpeed: 280, playerMoveSpeed: 300, spawnRateMultiplier: 1 },
+  generic: { scrollSpeed: 320, playerMoveSpeed: 320, spawnRateMultiplier: 1 },
+};
+
 export type PlayerRect = {
   left: number;
   right: number;
@@ -80,10 +96,42 @@ export function createSurgeRun(options: SurgeRunOptions): SurgeRun {
   return new SurgeRuntime(options);
 }
 
+export function surgeConfigFor(archetype: Archetype): SurgeArchetypeConfig {
+  return SURGE_ARCHETYPE_CONFIG[archetype];
+}
+
+export function drawSurgeBackground(
+  graphics: Graphics,
+  level: LevelScript,
+  elapsedMs: number,
+  playfieldHeight: number,
+): void {
+  const config = surgeConfigFor(level.archetype);
+
+  graphics.clear();
+  graphics.rect(0, 0, VIRTUAL_WIDTH, playfieldHeight);
+  graphics.fill({ color: 0x050505 });
+  graphics.rect(0, 0, VIRTUAL_WIDTH, playfieldHeight);
+  graphics.fill({ color: colorNumber(paletteColor(level, 0)), alpha: 0.18 });
+
+  switch (level.archetype) {
+    case "longform":
+      drawLongformTexture(graphics, level, playfieldHeight);
+      break;
+    case "reference":
+      drawReferenceTexture(graphics, level, elapsedMs, playfieldHeight, config);
+      break;
+    case "commerce":
+      drawCommerceTexture(graphics, level, elapsedMs, playfieldHeight, config);
+      break;
+  }
+}
+
 class SurgeRuntime implements SurgeRun {
   private readonly level: LevelScript;
   private readonly layer: Container;
   private readonly rng: RandomSource;
+  private readonly config: SurgeArchetypeConfig;
   private obstacles: Obstacle[] = [];
   private spawnAccumulator = 0;
   private spawnIndexInAct = 0;
@@ -93,6 +141,7 @@ class SurgeRuntime implements SurgeRun {
     this.level = options.level;
     this.layer = options.layer;
     this.rng = options.rng;
+    this.config = surgeConfigFor(this.level.archetype);
   }
 
   update(options: SurgeUpdateOptions): SurgeUpdateResult {
@@ -127,7 +176,7 @@ class SurgeRuntime implements SurgeRun {
     const deltaSeconds = options.deltaMs / 1000;
 
     for (const obstacle of this.obstacles) {
-      obstacle.y += SCROLL_SPEED * deltaSeconds;
+      obstacle.y += this.config.scrollSpeed * deltaSeconds;
       obstacle.graphics.position.set(obstacle.x, obstacle.y);
 
       if (obstacle.pulse) {
@@ -160,7 +209,8 @@ class SurgeRuntime implements SurgeRun {
       return;
     }
 
-    const spawnRate = spawnRateForDensity(act.payload.density);
+    const spawnRate =
+      spawnRateForDensity(act.payload.density) * this.config.spawnRateMultiplier;
 
     this.spawnAccumulator += spawnRate * (options.deltaMs / 1000);
 
@@ -259,7 +309,7 @@ class SurgeRuntime implements SurgeRun {
   }
 }
 
-const SCROLL_SPEED = 320;
+const VIRTUAL_WIDTH = 480;
 
 export function spawnRateForDensity(density: number): number {
   return lerp(0.5, 7, density);
@@ -297,6 +347,77 @@ function paletteColor(level: LevelScript, index: number): string {
 
 function colorNumber(hex: string): number {
   return Number.parseInt(hex.slice(1), 16);
+}
+
+function drawLongformTexture(
+  graphics: Graphics,
+  level: LevelScript,
+  playfieldHeight: number,
+): void {
+  const color = colorNumber(paletteColor(level, 1));
+
+  for (const x of [120, 360]) {
+    graphics.rect(x, 0, 1, playfieldHeight);
+    graphics.fill({ color, alpha: 0.06 });
+  }
+}
+
+function drawReferenceTexture(
+  graphics: Graphics,
+  level: LevelScript,
+  elapsedMs: number,
+  playfieldHeight: number,
+  config: SurgeArchetypeConfig,
+): void {
+  const gridSize = 80;
+  const offset = ((elapsedMs / 1000) * config.scrollSpeed * 0.5) % gridSize;
+  const color = mixColor(
+    colorNumber(paletteColor(level, 0)),
+    0xf5f7fb,
+    0.35,
+  );
+
+  for (let x = 0; x <= VIRTUAL_WIDTH; x += gridSize) {
+    graphics.rect(x, 0, 1, playfieldHeight);
+    graphics.fill({ color, alpha: 0.08 });
+  }
+
+  for (let y = -gridSize + offset; y <= playfieldHeight; y += gridSize) {
+    graphics.rect(0, y, VIRTUAL_WIDTH, 1);
+    graphics.fill({ color, alpha: 0.08 });
+  }
+}
+
+function drawCommerceTexture(
+  graphics: Graphics,
+  level: LevelScript,
+  elapsedMs: number,
+  playfieldHeight: number,
+  config: SurgeArchetypeConfig,
+): void {
+  const spacing = 32;
+  const offset = ((elapsedMs / 1000) * config.scrollSpeed) % spacing;
+  const color = colorNumber(paletteColor(level, 2));
+
+  for (let startX = -playfieldHeight + offset; startX < VIRTUAL_WIDTH; startX += spacing) {
+    graphics.moveTo(startX, playfieldHeight);
+    graphics.lineTo(startX + playfieldHeight, 0);
+    graphics.stroke({ color, alpha: 0.05, width: 1 });
+  }
+}
+
+function mixColor(from: number, to: number, amount: number): number {
+  const fromRed = (from >> 16) & 255;
+  const fromGreen = (from >> 8) & 255;
+  const fromBlue = from & 255;
+  const toRed = (to >> 16) & 255;
+  const toGreen = (to >> 8) & 255;
+  const toBlue = to & 255;
+  const red = Math.round(lerp(fromRed, toRed, amount));
+  const green = Math.round(lerp(fromGreen, toGreen, amount));
+  const blue = Math.round(lerp(fromBlue, toBlue, amount));
+
+  return (red << 16) | (green << 8) | blue;
 }
 
 function clamp(value: number, min: number, max: number): number {

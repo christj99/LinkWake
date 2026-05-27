@@ -1,5 +1,3 @@
-const KEYBOARD_SPEED = 320;
-
 export type PlayfieldMetrics = {
   virtualWidth: number;
   virtualHeight: number;
@@ -14,6 +12,7 @@ export type InputControllerOptions = {
   canvas: HTMLCanvasElement;
   getMetrics: () => PlayfieldMetrics;
   initialPlayerX: number;
+  keyboardSpeed?: number;
   minX?: number;
   maxX?: number;
 };
@@ -21,6 +20,7 @@ export type InputControllerOptions = {
 export class InputController {
   private readonly canvas: HTMLCanvasElement;
   private readonly getMetrics: () => PlayfieldMetrics;
+  private readonly keyboardSpeed: number;
   private readonly minX: number;
   private readonly maxX: number;
   private keys = new Set<string>();
@@ -30,6 +30,7 @@ export class InputController {
   constructor(options: InputControllerOptions) {
     this.canvas = options.canvas;
     this.getMetrics = options.getMetrics;
+    this.keyboardSpeed = options.keyboardSpeed ?? 320;
     this.minX = options.minX ?? 16;
     this.maxX = options.maxX ?? 464;
     this.pointerX = options.initialPlayerX;
@@ -51,8 +52,8 @@ export class InputController {
       return clamp(currentX, this.minX, this.maxX);
     }
 
-    return clamp(
-      currentX + direction * KEYBOARD_SPEED * deltaSeconds,
+      return clamp(
+      currentX + direction * this.keyboardSpeed * deltaSeconds,
       this.minX,
       this.maxX,
     );
@@ -129,4 +130,3 @@ function normalizeKey(key: string): string {
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
-
