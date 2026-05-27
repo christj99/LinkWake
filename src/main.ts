@@ -2,6 +2,7 @@ import {
   autoDetectRenderer,
   Container,
   Graphics,
+  RendererType,
   Text,
   TextStyle,
   Ticker,
@@ -42,7 +43,9 @@ const wordmark = new Text({
   }),
 });
 const status = new Text({
-  text: `PixiJS renderer ready: ${describeRenderer(renderer)}`,
+  text: `PixiJS renderer ready: ${
+    renderer.type === RendererType.WEBGPU ? "WebGPU" : "WebGL"
+  }`,
   style: new TextStyle({
     fill: MUTED,
     fontFamily: "Inter, system-ui, sans-serif",
@@ -72,28 +75,6 @@ function drawPulse(elapsedMs: number): void {
   pulse.stroke({ color: CYAN, alpha, width: 3 });
 }
 
-function describeRenderer(value: unknown): string {
-  const constructorName =
-    value &&
-    typeof value === "object" &&
-    "constructor" in value &&
-    value.constructor
-      ? value.constructor.name
-      : "PixiJS";
-
-  const normalized = constructorName.toLowerCase();
-
-  if (normalized.includes("webgpu")) {
-    return "WebGPU";
-  }
-
-  if (normalized.includes("gl")) {
-    return "WebGL";
-  }
-
-  return constructorName;
-}
-
 layout();
 window.addEventListener("resize", layout);
 
@@ -103,4 +84,3 @@ Ticker.shared.add(() => {
   renderer.render(stage);
 });
 Ticker.shared.start();
-
