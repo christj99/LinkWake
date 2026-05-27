@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "url_key": "https://en.wikipedia.org/wiki/Example",
+  "version_key": "handauth_reference_v1",
+  "lens_id": "canonical",
+  "viewport_class": "desktop",
+  "compiled_at": "2026-05-27T00:00:00Z",
+  "archetype": "reference",
+  "verb": "SURGE",
+  "duration_ms": 45000,
+  "rng_seed": "0000000000deadbeef",
+  "acts": [
+    {
+      "t": 0,
+      "kind": "intro",
+      "duration": 2000,
+      "payload": { "title": "Wikipedia - Example" }
+    },
+    {
+      "t": 2000,
+      "kind": "calm",
+      "duration": 4000,
+      "payload": { "density": 0.15 }
+    },
+    {
+      "t": 6000,
+      "kind": "obstacle_wave",
+      "duration": 8000,
+      "payload": {
+        "pattern": "alternating",
+        "density": 0.4,
+        "obstacle_type": "header"
+      }
+    },
+    {
+      "t": 14000,
+      "kind": "burst",
+      "duration": 3000,
+      "payload": { "density": 0.9, "obstacle_type": "cta" }
+    },
+    {
+      "t": 17000,
+      "kind": "channel",
+      "duration": 6000,
+      "payload": { "channel_width": 0.3, "drift": "oscillate" }
+    },
+    {
+      "t": 23000,
+      "kind": "obstacle_wave",
+      "duration": 15000,
+      "payload": {
+        "pattern": "sine",
+        "density": 0.5,
+        "obstacle_type": "paragraph"
+      }
+    },
+    {
+      "t": 38000,
+      "kind": "outro",
+      "duration": 7000,
+      "payload": {}
+    }
+  ],
+  "scoring": {
+    "max_score": 10000,
+    "deductions": { "hit": 100, "miss": 50 },
+    "bonuses": { "perfect_section": 500, "no_hit_act": 250 }
+  },
+  "sensory": {
+    "palette": ["#202122", "#f8f9fa", "#3366cc"],
+    "rhythm_bpm": 84,
+    "font_class": "sans-clean"
+  },
+  "source_signatures": {
+    "page_height_px": 8420,
+    "hero_box": [120, 80, 800, 500],
+    "body_rhythm_hash": "placeholder-reference"
+  }
+}
+
