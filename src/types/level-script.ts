@@ -273,9 +273,7 @@ type JsonObject = Record<string, unknown>;
 function validateAct(value: unknown, path: string, fail: Fail): Act {
   const act = expectObject(value, path, fail);
 
-  expectNumber(act.t, `${path}.t`, fail);
   expectNonNegativeNumber(act.t, `${path}.t`, fail);
-  expectNumber(act.duration, `${path}.duration`, fail);
   expectNonNegativeNumber(act.duration, `${path}.duration`, fail);
 
   if (typeof act.kind !== "string") {
