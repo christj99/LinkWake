@@ -256,23 +256,63 @@ export class GameRuntime {
   }
 
   private drawPlayer(): void {
+    const fill = colorNumber(paletteColor(this.level, 1));
+    const accent = colorNumber(paletteColor(this.level, 2));
+
     this.player.clear();
-    this.player.roundRect(
-      -PLAYER_SIZE / 2,
-      -PLAYER_SIZE / 2,
-      PLAYER_SIZE,
-      PLAYER_SIZE,
-      6,
-    );
-    this.player.fill({ color: colorNumber(paletteColor(this.level, 1)) });
-    this.player.roundRect(
-      -PLAYER_SIZE / 2 + 0.5,
-      -PLAYER_SIZE / 2 + 0.5,
-      PLAYER_SIZE - 1,
-      PLAYER_SIZE - 1,
-      6,
-    );
-    this.player.stroke({ color: 0xf5f7fb, alpha: 0.7, width: 2 });
+
+    switch (this.level.archetype) {
+      case "longform":
+        this.player.roundRect(
+          -PLAYER_SIZE / 2,
+          -PLAYER_SIZE / 2,
+          PLAYER_SIZE,
+          PLAYER_SIZE,
+          4,
+        );
+        this.player.fill({ color: fill });
+        this.player.roundRect(
+          -PLAYER_SIZE / 2 + 0.5,
+          -PLAYER_SIZE / 2 + 0.5,
+          PLAYER_SIZE - 1,
+          PLAYER_SIZE - 1,
+          4,
+        );
+        this.player.stroke({ color: accent, alpha: 0.95, width: 1 });
+        break;
+      case "commerce":
+        this.player.rect(
+          -PLAYER_SIZE / 2,
+          -PLAYER_SIZE / 2,
+          PLAYER_SIZE,
+          PLAYER_SIZE,
+        );
+        this.player.fill({ color: fill });
+        this.player.rect(
+          -PLAYER_SIZE / 2 + 5,
+          -PLAYER_SIZE / 2 + 5,
+          PLAYER_SIZE - 10,
+          5,
+        );
+        this.player.fill({ color: 0xffffff, alpha: 0.28 });
+        this.player.rect(
+          -PLAYER_SIZE / 2 + 1,
+          -PLAYER_SIZE / 2 + 1,
+          PLAYER_SIZE - 2,
+          PLAYER_SIZE - 2,
+        );
+        this.player.stroke({ color: accent, alpha: 1, width: 2 });
+        break;
+      default:
+        this.player.rect(
+          -PLAYER_SIZE / 2,
+          -PLAYER_SIZE / 2,
+          PLAYER_SIZE,
+          PLAYER_SIZE,
+        );
+        this.player.fill({ color: fill });
+        break;
+    }
   }
 
   private playerY(playfieldHeight: number): number {

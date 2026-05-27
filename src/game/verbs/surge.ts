@@ -11,12 +11,17 @@ import type {
 export type ObstacleTreatment = {
   width: number;
   height: number;
-  colorSlot: number;
+  paletteSlot: number;
   alpha: number;
   pulse?: {
-    periodMs: number;
-    minAlpha: number;
-    maxAlpha: number;
+    period_ms: number;
+    min_alpha: number;
+    max_alpha: number;
+  };
+  glow?: {
+    paletteSlot: number;
+    alpha: number;
+    expand: number;
   };
 };
 
@@ -24,17 +29,17 @@ export const SURGE_OBSTACLE_TREATMENTS: Record<
   ObstacleType,
   ObstacleTreatment
 > = {
-  paragraph: { width: 120, height: 16, colorSlot: 0, alpha: 0.7 },
-  cta: { width: 40, height: 40, colorSlot: 2, alpha: 1 },
+  paragraph: { width: 120, height: 16, paletteSlot: 0, alpha: 0.7 },
+  cta: { width: 40, height: 40, paletteSlot: 2, alpha: 1 },
   ad: {
     width: 80,
     height: 60,
-    colorSlot: 3,
+    paletteSlot: 3,
     alpha: 0.7,
-    pulse: { periodMs: 600, minAlpha: 0.7, maxAlpha: 1 },
+    pulse: { period_ms: 600, min_alpha: 0.7, max_alpha: 1 },
   },
-  header: { width: 96, height: 24, colorSlot: 0, alpha: 0.9 },
-  image: { width: 64, height: 64, colorSlot: 1, alpha: 1 },
+  header: { width: 96, height: 24, paletteSlot: 0, alpha: 0.9 },
+  image: { width: 64, height: 64, paletteSlot: 1, alpha: 1 },
 };
 
 export type SurgeRunOptions = {
@@ -98,6 +103,52 @@ export function createSurgeRun(options: SurgeRunOptions): SurgeRun {
 
 export function surgeConfigFor(archetype: Archetype): SurgeArchetypeConfig {
   return SURGE_ARCHETYPE_CONFIG[archetype];
+}
+
+export function treatmentFor(
+  archetype: Archetype,
+  type: ObstacleType,
+): ObstacleTreatment {
+  const base = SURGE_OBSTACLE_TREATMENTS[type];
+
+  if (archetype === "longform") {
+    switch (type) {
+      case "paragraph":
+        return { ...base, width: 160, height: 14, alpha: 0.55 };
+      case "cta":
+        return { ...base, width: 32, height: 32, alpha: 1, paletteSlot: 2 };
+      case "ad":
+        return {
+          ...base,
+          alpha: 0.5,
+          pulse: { period_ms: 500, min_alpha: 0.5, max_alpha: 1 },
+        };
+    }
+  }
+
+  if (archetype === "commerce") {
+    switch (type) {
+      case "cta":
+        return {
+          ...base,
+          width: 48,
+          height: 48,
+          alpha: 1,
+          paletteSlot: 2,
+          glow: { paletteSlot: 2, alpha: 0.3, expand: 10 },
+        };
+      case "image":
+        return { ...base, width: 80, height: 80 };
+      case "ad":
+        return {
+          ...base,
+          alpha: 0.6,
+          pulse: { period_ms: 350, min_alpha: 0.6, max_alpha: 1 },
+        };
+    }
+  }
+
+  return base;
 }
 
 export function drawSurgeBackground(
@@ -181,13 +232,13 @@ class SurgeRuntime implements SurgeRun {
 
       if (obstacle.pulse) {
         const phase =
-          (Math.sin((options.elapsedMs / obstacle.pulse.periodMs) * Math.PI * 2) +
+          (Math.sin((options.elapsedMs / obstacle.pulse.period_ms) * Math.PI * 2) +
             1) /
           2;
 
         obstacle.graphics.alpha =
-          obstacle.pulse.minAlpha +
-          phase * (obstacle.pulse.maxAlpha - obstacle.pulse.minAlpha);
+          obstacle.pulse.min_alpha +
+          phase * (obstacle.pulse.max_alpha - obstacle.pulse.min_alpha);
       }
     }
 
@@ -236,11 +287,25 @@ class SurgeRuntime implements SurgeRun {
     elapsedMs: number,
     actStartMs: number,
   ): void {
-    const treatment = SURGE_OBSTACLE_TREATMENTS[obstacleType];
+    const treatment = treatmentFor(this.level.archetype, obstacleType);
     const x = this.patternX(pattern, elapsedMs - actStartMs, treatment.width);
     const y = -treatment.height;
     const graphics = new Graphics();
-    const color = colorNumber(paletteColor(this.level, treatment.colorSlot));
+    const color = colorNumber(paletteColor(this.level, treatment.paletteSlot));
+
+    if (treatment.glow) {
+      const glowColor = colorNumber(
+        paletteColor(this.level, treatment.glow.paletteSlot),
+      );
+
+      graphics.rect(
+        -treatment.width / 2 - treatment.glow.expand / 2,
+        -treatment.glow.expand / 2,
+        treatment.width + treatment.glow.expand,
+        treatment.height + treatment.glow.expand,
+      );
+      graphics.fill({ color: glowColor, alpha: treatment.glow.alpha });
+    }
 
     graphics.rect(
       -treatment.width / 2,
