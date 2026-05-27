@@ -33,3 +33,6 @@ canvas {
   height: 100%;
 }
 
+#app.is-preview canvas {
+  cursor: pointer;
+}

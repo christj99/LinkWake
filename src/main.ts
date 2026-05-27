@@ -2,12 +2,15 @@ import {
   autoDetectRenderer,
   Container,
   Graphics,
+  Rectangle,
   RendererType,
   Text,
   TextStyle,
   Ticker,
 } from "pixi.js";
+import { GameRuntime, type RuntimeState } from "./game/runtime";
 import { LEVELS } from "./levels";
+import { createResultsOverlay, type ResultsOverlay } from "./shell/results-overlay";
 import "./styles/shell.css";
 
 import type { FontClass, LevelScript } from "./types/level-script";
@@ -32,6 +35,8 @@ if (!appRoot) {
   throw new Error("Missing #app mount point.");
 }
 
+const appRootElement = appRoot;
+
 const renderer = await autoDetectRenderer({
   preference: "webgpu",
   width: window.innerWidth,
@@ -45,6 +50,7 @@ const renderer = await autoDetectRenderer({
 appRoot.appendChild(renderer.canvas);
 
 const stage = new Container();
+const previewLayer = new Container();
 const header = new Text({
   text: "LinkWake Phase 0 Levels",
   style: new TextStyle({
@@ -66,7 +72,12 @@ const rendererStatus = new Text({
 });
 const tiles: LevelTile[] = LEVELS.map((level) => createLevelTile(level));
 
-stage.addChild(header, rendererStatus, ...tiles);
+let runtime: GameRuntime | null = null;
+let runtimeState: RuntimeState = { kind: "preview" };
+let resultsOverlay: ResultsOverlay | null = null;
+
+previewLayer.addChild(header, rendererStatus, ...tiles);
+stage.addChild(previewLayer);
 
 function layout(): void {
   renderer.resize(window.innerWidth, window.innerHeight);
@@ -87,8 +98,11 @@ function layout(): void {
 
   tiles.forEach((tile, index) => {
     tile.position.set(x, startY + 68 + index * (tileHeight + gap));
+    tile.hitArea = new Rectangle(0, 0, tileWidth, tileHeight);
     drawLevelTile(tile, LEVELS[index], tileWidth, tileHeight);
   });
+
+  resultsOverlay?.layout(window.innerWidth, window.innerHeight);
 }
 
 function createLevelTile(level: LevelScript): LevelTile {
@@ -97,7 +111,7 @@ function createLevelTile(level: LevelScript): LevelTile {
   const host = new Text({
     text: hostFromUrl(level.url_key),
     style: new TextStyle({
-      fill: colorNumber(paletteColor(level, 0)),
+      fill: readableHostColor(level),
       fontFamily: FONT_FAMILIES[level.sensory.font_class],
       fontSize: 26,
       fontWeight: "700",
@@ -121,10 +135,14 @@ function createLevelTile(level: LevelScript): LevelTile {
     }),
   });
 
+  tile.level = level;
   tile.background = background;
   tile.host = host;
   tile.archetype = archetype;
   tile.subtitle = subtitle;
+  tile.eventMode = "static";
+  tile.cursor = "pointer";
+  tile.on("pointertap", () => startRun(level));
   tile.addChild(background, host, archetype, subtitle);
 
   return tile;
@@ -157,6 +175,56 @@ function drawLevelTile(
   drawSwatches(background, level.sensory.palette, width);
 }
 
+function startRun(level: LevelScript): void {
+  runtime?.destroy();
+  runtime = new GameRuntime({
+    level,
+    canvas: renderer.canvas,
+    stage,
+  });
+  runtimeState = {
+    kind: "playing",
+    level,
+    elapsedMs: 0,
+    score: level.scoring.max_score,
+  };
+  previewLayer.visible = false;
+  destroyResultsOverlay();
+  appRootElement.classList.remove("is-preview");
+}
+
+function showResults(state: Extract<RuntimeState, { kind: "ended" }>): void {
+  runtimeState = state;
+  destroyResultsOverlay();
+  resultsOverlay = createResultsOverlay({
+    level: state.level,
+    score: state.score,
+    bestScore: state.bestScore,
+    onReturn: showPreview,
+  });
+  stage.addChild(resultsOverlay);
+  resultsOverlay.layout(window.innerWidth, window.innerHeight);
+}
+
+function showPreview(): void {
+  runtime?.destroy();
+  runtime = null;
+  runtimeState = { kind: "preview" };
+  destroyResultsOverlay();
+  previewLayer.visible = true;
+  appRootElement.classList.add("is-preview");
+}
+
+function destroyResultsOverlay(): void {
+  if (!resultsOverlay) {
+    return;
+  }
+
+  stage.removeChild(resultsOverlay);
+  resultsOverlay.destroy({ children: true });
+  resultsOverlay = null;
+}
+
 function drawSwatches(
   graphics: Graphics,
   palette: readonly string[],
@@ -179,13 +247,21 @@ function drawSwatches(
 }
 
 function paletteColor(level: LevelScript, index: number): string {
-  const color = level.sensory.palette[index];
+  const color =
+    level.sensory.palette[index] ??
+    level.sensory.palette[level.sensory.palette.length - 1];
 
   if (!color) {
     throw new Error(`Missing palette color ${index} for ${level.url_key}`);
   }
 
   return color;
+}
+
+function readableHostColor(level: LevelScript): number {
+  const paletteZero = colorNumber(paletteColor(level, 0));
+
+  return paletteZero < 0x303030 ? 0xd4d8df : paletteZero;
 }
 
 function colorNumber(hex: string): number {
@@ -197,9 +273,33 @@ function hostFromUrl(url: string): string {
 }
 
 layout();
+showPreview();
 window.addEventListener("resize", layout);
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && runtimeState.kind === "playing") {
+    if (runtime) {
+      showResults(runtime.finish());
+    }
+  } else if (
+    (event.key === "Escape" || event.key === " ") &&
+    runtimeState.kind === "ended"
+  ) {
+    event.preventDefault();
+    showPreview();
+  }
+});
 
 Ticker.shared.add(() => {
+  if (runtimeState.kind === "playing" && runtime) {
+    const nextState = runtime.update(Ticker.shared.deltaMS);
+
+    if (nextState.kind === "ended") {
+      showResults(nextState);
+    } else {
+      runtimeState = nextState;
+    }
+  }
+
   renderer.render(stage);
 });
 Ticker.shared.start();
@@ -208,5 +308,6 @@ type LevelTile = Container & {
   archetype: Text;
   background: Graphics;
   host: Text;
+  level: LevelScript;
   subtitle: Text;
 };
